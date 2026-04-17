@@ -1,5 +1,7 @@
 // config/db.js — MySQL connection pool
 const mysql = require('mysql2/promise');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const pool = mysql.createPool({
@@ -8,6 +10,12 @@ const pool = mysql.createPool({
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || 'strivio_db',
+  ssl: process.env.DB_HOST && process.env.DB_HOST !== 'localhost'
+    ? { 
+        rejectUnauthorized: true,
+        ca: fs.readFileSync(path.join(__dirname, '../certs/ca.pem')),
+      }
+    : false,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

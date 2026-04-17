@@ -52,4 +52,28 @@ const sendReminders = async (req, res) => {
   }
 };
 
-module.exports = { registerToken, sendReminders };
+// GET /api/notifications
+const getNotifications = async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+      [req.user.id]
+    );
+    res.json({ success: true, notifications: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// PATCH /api/notifications/:id/read
+const markRead = async (req, res) => {
+  try {
+    await query('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    res.json({ success: true, message: 'Notification marked as read.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { registerToken, sendReminders, getNotifications, markRead };
+

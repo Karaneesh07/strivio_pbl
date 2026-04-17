@@ -1,7 +1,29 @@
-// src/pages/SettingsPage.jsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function SettingsPage() {
+  const { user, setUser } = useAuth();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notifications_enabled);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setNotificationsEnabled(user?.notifications_enabled);
+  }, [user]);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await api.patch('/settings', { notifications_enabled: notificationsEnabled });
+      setUser({ ...user, notifications_enabled: notificationsEnabled });
+      alert("Settings saved successfully!");
+    } catch (err) {
+      alert("Failed to save settings: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container-fluid py-3">
       <div className="row g-5">
@@ -46,7 +68,7 @@ export default function SettingsPage() {
                     <div className="text-secondary small">Toggle between light and dark visual themes.</div>
                  </div>
                  <div className="form-check form-switch m-0">
-                    <input className="form-check-input" type="checkbox" defaultChecked style={{ width: '3em', height: '1.5em' }} />
+                    <input className="form-check-input" type="checkbox" defaultChecked style={{ width: '3em', height: '1.5em' }} disabled />
                  </div>
               </div>
            </div>
@@ -74,42 +96,31 @@ export default function SettingsPage() {
                        <div className="fw-bold">Enable Desktop Notifications</div>
                     </div>
                     <div className="form-check form-switch m-0">
-                       <input className="form-check-input" type="checkbox" defaultChecked />
+                       <input className="form-check-input" type="checkbox" 
+                              checked={notificationsEnabled} 
+                              onChange={(e) => setNotificationsEnabled(e.target.checked)} />
                     </div>
                  </div>
 
                  <div className="p-3 mb-4 rounded d-flex align-items-center justify-content-between bg-primary bg-opacity-10 border border-primary border-opacity-25">
                     <div className="d-flex align-items-center gap-2 small text-primary">
-                       <i className="bi bi-info-circle-fill" /> Not receiving notifications? Browser permissions might be blocked.
+                       <i className="bi bi-info-circle-fill" /> Not receiving notifications? Check your browser settings.
                     </div>
-                    <button className="btn btn-sm btn-primary">Re-request Permission</button>
                  </div>
 
                  <div className="mt-4">
-                    <div className="text-uppercase text-secondary small fw-bold mb-3" style={{ letterSpacing: '1px' }}>Connected Devices</div>
+                    <div className="text-uppercase text-secondary small fw-bold mb-3" style={{ letterSpacing: '1px' }}>Device Info</div>
                     <div className="row g-3">
                        <div className="col-md-6">
                           <div className="card-glass p-3 d-flex align-items-center justify-content-between bg-dark border-opacity-50">
                              <div className="d-flex align-items-center gap-3">
                                 <i className="bi bi-laptop fs-4 text-secondary" />
                                 <div>
-                                   <div className="small fw-bold">MacBook Pro 16"</div>
-                                   <div className="text-secondary" style={{ fontSize: '.65rem' }}>Chrome • Last active 2m ago</div>
+                                   <div className="small fw-bold">Active Device</div>
+                                   <div className="text-secondary" style={{ fontSize: '.65rem' }}>Full persistence active</div>
                                 </div>
                              </div>
                              <div className="bg-success rounded-circle" style={{ width: 8, height: 8 }} />
-                          </div>
-                       </div>
-                       <div className="col-md-6">
-                          <div className="card-glass p-3 d-flex align-items-center justify-content-between bg-dark border-opacity-50">
-                             <div className="d-flex align-items-center gap-3">
-                                <i className="bi bi-phone fs-4 text-secondary" />
-                                <div>
-                                   <div className="small fw-bold">iPhone 15 Pro</div>
-                                   <div className="text-secondary" style={{ fontSize: '.65rem' }}>iOS App • Last active 4h ago</div>
-                                </div>
-                             </div>
-                             <i className="bi bi-trash text-secondary small ms-auto" style={{ cursor: 'pointer' }} />
                           </div>
                        </div>
                     </div>
@@ -118,8 +129,9 @@ export default function SettingsPage() {
            </div>
 
            <div className="d-flex justify-content-end gap-3 pt-4 border-top border-secondary border-opacity-25">
-              <button className="btn text-secondary">Discard Changes</button>
-              <button className="btn btn-primary px-5 rounded-pill shadow">Save Preferences</button>
+              <button className="btn btn-primary px-5 rounded-pill shadow" onClick={handleSave} disabled={loading}>
+                  {loading ? 'Saving...' : 'Save Preferences'}
+              </button>
            </div>
         </div>
       </div>

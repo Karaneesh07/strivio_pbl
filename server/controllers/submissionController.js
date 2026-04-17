@@ -30,6 +30,19 @@ const updateStreak = async (userId) => {
   );
 };
 
+// Helper — handle success (streak + notification)
+const handleSuccess = async (userId, problemId) => {
+  await updateStreak(userId);
+  
+  // Auto-generate a notification
+  const { rows: probRows } = await query('SELECT title FROM problems WHERE id = ?', [problemId]);
+  const probTitle = probRows[0]?.title || 'Challenge';
+  await query(
+      'INSERT INTO notifications (user_id, title, body, type) VALUES (?, ?, ?, ?)',
+      [userId, 'Problem Solved! ✅', `Congratulations! You successfully solved "${probTitle}".`, 'achievement']
+  );
+};
+
 // POST /api/submissions
 const createSubmission = async (req, res) => {
   const { problem_id, code, language, status, passed_count, total_count, execution_time, memory } = req.body;
@@ -59,7 +72,7 @@ const createSubmission = async (req, res) => {
     const submission = subRows[0];
 
     if (status === 'Passed' || status === 'solved') {
-      await updateStreak(req.user.id);
+      await handleSuccess(req.user.id, problem_id);
     }
 
     return res.status(201).json({ success: true, submission });
@@ -85,4 +98,4 @@ const getMySubmissions = async (req, res) => {
   }
 };
 
-module.exports = { createSubmission, getMySubmissions, updateStreak };
+module.exports = { createSubmission, getMySubmissions, updateStreak, handleSuccess };

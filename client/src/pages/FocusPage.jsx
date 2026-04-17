@@ -5,7 +5,18 @@ import api from '../services/api';
 export default function FocusPage() {
   const [timeLeft, setTimeLeft] = useState(45 * 60); // 45 minutes
   const [isActive, setIsActive] = useState(false);
-  const [stats, setStats] = useState({ tasks: '03 / 05', streak: '12 Days', xp: '+450' });
+  const [stats, setStats] = useState({ tasks: '0 / 0', streak: '0 Days', xp: '0' });
+
+  useEffect(() => {
+    api.get('/analytics/me').then(({ data: d }) => {
+        const a = d.analytics;
+        setStats({
+            tasks: `${a.total_solved} Solved`,
+            streak: `${a.streak} Days`,
+            xp: `+${a.total_solved * 50}` // Estimating XP
+        });
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let timer = null;
@@ -23,8 +34,20 @@ export default function FocusPage() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const toggleTimer = () => setIsActive(!isActive);
-  const resetTimer = () => { setTimeLeft(45 * 60); setIsActive(false); };
+  const toggleTimer = () => {
+    if (!isActive) {
+        api.post('/focus/start').catch(() => {});
+    } else {
+        api.post('/focus/end').catch(() => {});
+    }
+    setIsActive(!isActive);
+  };
+
+  const resetTimer = () => { 
+    if (isActive) api.post('/focus/end').catch(() => {});
+    setTimeLeft(45 * 60); 
+    setIsActive(false); 
+  };
 
   return (
     <div className="d-flex flex-column align-items-center justify-content-center h-100 text-white" style={{ background: '#0a0c1e', margin: '-1.5rem', minHeight: 'calc(100vh - 56px)' }}>

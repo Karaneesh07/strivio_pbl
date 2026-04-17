@@ -14,6 +14,8 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const notificationRoutes = require('./routes/notifications');
 const settingsRoutes = require('./routes/settings');
 const codeRoutes = require('./routes/code');
+const reflectionRoutes = require('./routes/reflections');
+const goalRoutes = require('./routes/goals');
 
 const app = express();
 
@@ -39,6 +41,8 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/code', codeRoutes);
+app.use('/api/reflections', reflectionRoutes);
+app.use('/api/goals', goalRoutes);
 
 // ── 404 catchall ───────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found.' }));

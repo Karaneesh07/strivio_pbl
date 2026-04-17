@@ -118,8 +118,8 @@ const submitCode = async (req, res) => {
 
     // 4. Update streak if fully passed
     if (overallStatus === 'Passed') {
-      const { updateStreak } = require('./submissionController');
-      await updateStreak(userId);
+      const { handleSuccess } = require('./submissionController');
+      await handleSuccess(userId, problem_id);
     }
 
     return res.json({

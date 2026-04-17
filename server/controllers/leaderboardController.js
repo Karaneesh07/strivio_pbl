@@ -10,9 +10,11 @@ const getLeaderboard = async (req, res) => {
          u.id,
          u.name,
          u.streak,
-         (SELECT COUNT(*) FROM submissions s
-          WHERE s.user_id = u.id AND s.status = 'Passed') AS total_solved
+         COUNT(s.id) AS total_solved,
+         (COUNT(s.id) * 50) AS xp
        FROM users u
+       LEFT JOIN submissions s ON u.id = s.user_id AND s.status IN ('Passed', 'solved')
+       GROUP BY u.id
        ORDER BY u.streak DESC, total_solved DESC
        LIMIT ?`,
       [limit]
