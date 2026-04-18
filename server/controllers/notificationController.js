@@ -75,5 +75,28 @@ const markRead = async (req, res) => {
   }
 };
 
-module.exports = { registerToken, sendReminders, getNotifications, markRead };
+// PATCH /api/notifications/read-all
+const markAllRead = async (req, res) => {
+  try {
+    await query('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [req.user.id]);
+    res.json({ success: true, message: 'All notifications marked as read.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// GET /api/notifications/unread-count
+const getUnreadCount = async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT COUNT(*) AS cnt FROM notifications WHERE user_id = ? AND is_read = 0',
+      [req.user.id]
+    );
+    res.json({ success: true, count: rows[0].cnt });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { registerToken, sendReminders, getNotifications, markRead, markAllRead, getUnreadCount };
 

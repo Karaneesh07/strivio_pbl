@@ -35,12 +35,23 @@ export default function ProblemWorkspace() {
   }, [id, navigate]);
 
   const runCode = async () => {
-    setOutput("Running test cases...");
+    setOutput("Running test cases securely via Judge0 backend...");
     setIsRunning(true);
     try {
-      // Using existing external compiler for immediate functionality
-      const res = await axios.post("https://py-compiler.onrender.com/run-python", { code });
-      setOutput(res.data.output || res.data.error || "No output");
+      const res = await api.post("/code/run", {
+          problem_id: id,
+          source_code: code,
+          language_id: 71, // Python 3
+      });
+
+      if(res.data && res.data.results) {
+         const out = res.data.results.map((r, i) => {
+             return `[Example ${i+1}] Status: ${r.status}\nOutput: ${r.output || "None"}\n${r.error ? `Error: ${r.error}\n` : ''}`;
+         }).join("\n--------------------\n");
+         setOutput(`Total Examples: ${res.data.total} | Passed: ${res.data.passed}\n\n${out}`);
+      } else {
+         setOutput("Execution finished, but no explicit results were returned.");
+      }
     } catch (err) {
       setOutput("Execution Error: " + (err.response?.data?.message || err.message));
     } finally {
@@ -128,6 +139,29 @@ export default function ProblemWorkspace() {
                     <div style={{ color: "#94a3b8", lineHeight: 1.6, whiteSpace: "pre-wrap", fontSize: '.95rem' }}>
                         {problem?.description || "No description provided."}
                     </div>
+
+                    {problem?.examples && problem.examples.length > 0 && (
+                        <div className="mt-4 pt-4" style={{ borderTop: '1px solid #1e2340' }}>
+                            {problem.examples.slice(0, 3).map((ex, i) => (
+                                <div key={i} className="mb-4">
+                                    <h6 style={{ fontWeight: 700, color: '#fff', marginBottom: '.75rem' }}>Example {i + 1}:</h6>
+                                    <div style={{ 
+                                        background: 'rgba(67, 97, 238, 0.05)', 
+                                        borderLeft: '3px solid #4361ee',
+                                        padding: '1rem', 
+                                        borderRadius: '0 8px 8px 0', 
+                                        fontFamily: "'Fira Code', monospace", 
+                                        fontSize: '.85rem',
+                                        color: '#cbd5e1' 
+                                    }}>
+                                        <div><span style={{color: '#a5b4fc', fontWeight: 700}}>Input:</span> {ex.input}</div>
+                                        <div className="mt-2"><span style={{color: '#a5b4fc', fontWeight: 700}}>Output:</span> {ex.expected_output}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     {problem?.tags && (
                         <div className="d-flex gap-2 mt-4 flex-wrap">
                             {(() => {

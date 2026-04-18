@@ -3,35 +3,40 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
-import LoginPage        from './pages/LoginPage';
-import RegisterPage     from './pages/RegisterPage';
-import DashboardPage    from './pages/DashboardPage';
-import ProblemsPage     from './pages/ProblemsPage';
-import DailyPage        from './pages/DailyPage';
-import SubmissionsPage  from './pages/SubmissionsPage';
-import AnalyticsPage    from './pages/AnalyticsPage';
-import FocusPage        from './pages/FocusPage';
-import LeaderboardPage  from './pages/LeaderboardPage';
-import SettingsPage      from './pages/SettingsPage';
-import WeeklyGoalsPage   from './pages/WeeklyGoalsPage';
+import LoginPage            from './pages/LoginPage';
+import RegisterPage         from './pages/RegisterPage';
+import OnboardingPage       from './pages/OnboardingPage';
+import DashboardPage        from './pages/DashboardPage';
+import ProblemsPage         from './pages/ProblemsPage';
+import DailyPage            from './pages/DailyPage';
+import SubmissionsPage      from './pages/SubmissionsPage';
+import AnalyticsPage        from './pages/AnalyticsPage';
+import FocusPage            from './pages/FocusPage';
+import LeaderboardPage      from './pages/LeaderboardPage';
+import SettingsPage         from './pages/SettingsPage';
+import WeeklyGoalsPage      from './pages/WeeklyGoalsPage';
 import ReflectionJournalPage from './pages/ReflectionJournalPage';
-import NotificationsPage from './pages/NotificationsPage';
-import ProblemWorkspace  from './pages/ProblemWorkspace';
-import Sidebar           from './components/Sidebar';
+import NotificationsPage    from './pages/NotificationsPage';
+import ProblemWorkspace     from './pages/ProblemWorkspace';
+import Sidebar              from './components/Sidebar';
 
-// Protected route wrapper
+// Protected route: also redirects to onboarding on first login
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="d-flex justify-content-center align-items-center vh-100" style={{ color: '#4361ee' }}><div className="spinner-border" /></div>;
-  return user ? children : <Navigate to="/login" replace />;
+  if (loading) return (
+    <div className="d-flex justify-content-center align-items-center vh-100" style={{ color: '#4361ee' }}>
+      <div className="spinner-border" />
+    </div>
+  );
+  if (!user) return <Navigate to="/login" replace />;
+  if (!localStorage.getItem('strivio_onboarded')) return <Navigate to="/onboarding" replace />;
+  return children;
 };
 
 const AppLayout = ({ children }) => (
   <div className="d-flex">
     <Sidebar />
-    <div className="main-content flex-grow-1">
-      {children}
-    </div>
+    <div className="main-content flex-grow-1">{children}</div>
   </div>
 );
 
@@ -39,8 +44,10 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/login"    element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/login"      element={<LoginPage />} />
+        <Route path="/register"   element={<RegisterPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
+
         <Route path="/" element={<PrivateRoute><AppLayout><DashboardPage /></AppLayout></PrivateRoute>} />
         <Route path="/problems"     element={<PrivateRoute><AppLayout><ProblemsPage /></AppLayout></PrivateRoute>} />
         <Route path="/daily"        element={<PrivateRoute><AppLayout><DailyPage /></AppLayout></PrivateRoute>} />

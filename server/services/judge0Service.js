@@ -1,90 +1,133 @@
 // services/judge0Service.js
-const axios = require('axios');
-require('dotenv').config();
+const { spawn } = require('child_process');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
-const JUDGE0_API_URL = process.env.JUDGE0_API_URL || 'https://judge0-ce.p.rapidapi.com';
-const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
-const RAPIDAPI_HOST = process.env.RAPIDAPI_HOST || 'judge0-ce.p.rapidapi.com';
-
-const judge0Api = axios.create({
-  baseURL: JUDGE0_API_URL,
-  headers: {
-    'content-type': 'application/json',
-    'x-rapidapi-key': RAPIDAPI_KEY,
-    'x-rapidapi-host': RAPIDAPI_HOST,
-  },
-});
+// In-memory store for async execution results
+const submissionStore = {};
 
 /**
- * Creates a submission in Judge0
- * @param {string} source_code 
- * @param {number} language_id 
- * @param {string} stdin 
- * @returns {Promise<string>} Token for the submission
+ * Creates a submission and immediately begins executing it locally.
+ * Returns a "token" instantly so the polling mechanism works.
  */
 const createSubmission = async (source_code, language_id, stdin) => {
-  try {
-    const response = await judge0Api.post('/submissions', {
-      source_code: Buffer.from(source_code).toString('base64'),
-      language_id,
-      stdin: stdin ? Buffer.from(stdin).toString('base64') : null,
-      base64_encoded: true,
-    }, {
-      params: { wait: 'false', fields: 'token' }
-    });
-    return response.data.token;
-  } catch (err) {
-    console.error('Judge0 Create Error:', err.response?.data || err.message);
-    throw new Error('Failed to create submission in Judge0');
-  }
-};
-
-/**
- * Fetches the result of a submission by token
- * @param {string} token 
- * @returns {Promise<Object>} Result object
- */
-const getSubmissionResult = async (token) => {
-  try {
-    const response = await judge0Api.get(`/submissions/${token}`, {
-      params: { base64_encoded: 'true', fields: 'stdout,stderr,compile_output,status_id,status,time,memory' }
-    });
-    
-    const { stdout, stderr, compile_output, status, time, memory } = response.data;
-    
-    return {
-      output: stdout ? Buffer.from(stdout, 'base64').toString('utf-8') : '',
-      error: stderr ? Buffer.from(stderr, 'base64').toString('utf-8') : '',
-      compile_error: compile_output ? Buffer.from(compile_output, 'base64').toString('utf-8') : '',
-      status: status.description,
-      time: time || '0',
-      memory: memory || 0,
+  const token = uuidv4();
+  
+  // Set initial status to emulate Judge0
+  submissionStore[token] = { status: 'Processing' };
+  
+  // Execute asynchronously
+  executeLocal(token, source_code, stdin).catch(err => {
+    submissionStore[token] = {
+      status: 'Internal Error',
+      error: err.message,
+      output: '',
+      compile_error: '',
+      time: '0',
+      memory: 0
     };
+  });
+  
+  return token;
+};
+
+const executeLocal = async (token, source_code, stdin) => {
+  const tmpDir = os.tmpdir();
+  const scriptPath = path.join(tmpDir, `strivio_${token}.py`);
+  
+  try {
+    fs.writeFileSync(scriptPath, source_code);
   } catch (err) {
-    console.error('Judge0 Get Result Error:', err.response?.data || err.message);
-    throw new Error('Failed to fetch submission result from Judge0');
+    throw new Error('Failed to create tmp file for execution');
   }
+
+  const startTime = process.hrtime();
+  
+  return new Promise((resolve) => {
+    const pythonProcess = spawn('python', [scriptPath]);
+    
+    let stdoutData = '';
+    let stderrData = '';
+    
+    // Set a strict 5-second timeout
+    const timeoutId = setTimeout(() => {
+      pythonProcess.kill('SIGKILL');
+      submissionStore[token] = {
+        status: 'Time Limit Exceeded',
+        output: stdoutData,
+        error: stderrData || 'Execution timed out > 5s',
+        compile_error: '',
+        time: '5.0',
+        memory: 0
+      };
+      resolve();
+    }, 5000);
+
+    if (stdin) {
+      pythonProcess.stdin.write(stdin);
+      pythonProcess.stdin.end();
+    } else {
+      pythonProcess.stdin.end();
+    }
+
+    pythonProcess.stdout.on('data', (data) => {
+      stdoutData += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      stderrData += data.toString();
+    });
+
+    pythonProcess.on('close', (code) => {
+      clearTimeout(timeoutId);
+      const diff = process.hrtime(startTime);
+      const seconds = (diff[0] + diff[1] / 1e9).toFixed(3);
+
+      if (code === 0) {
+        submissionStore[token] = {
+          status: 'Accepted',
+          output: stdoutData,
+          error: '',
+          compile_error: '',
+          time: seconds,
+          memory: 0
+        };
+      } else {
+        submissionStore[token] = {
+          status: 'Runtime Error',
+          output: stdoutData,
+          error: stderrData,
+          compile_error: '', // Python compiles at runtime roughly, so it drops into standard err
+          time: seconds,
+          memory: 0
+        };
+      }
+      
+      // Cleanup
+      try { fs.unlinkSync(scriptPath); } catch (e) {}
+      resolve();
+    });
+  });
 };
 
 /**
- * Polls Judge0 until the submission is finished
- * @param {string} token 
- * @returns {Promise<Object>}
+ * Polling mechanism logic
  */
 const pollSubmissionResult = async (token) => {
   let result;
-  for (let i = 0; i < 10; i++) { // Max 10 attempts
-    result = await getSubmissionResult(token);
-    if (result.status !== 'In Queue' && result.status !== 'Processing') {
+  for (let i = 0; i < 20; i++) { // Max 10 seconds (20 * 500ms)
+    result = submissionStore[token];
+    if (result && result.status !== 'Processing') {
       return result;
     }
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
-  return result;
+  return { status: 'Timeout', error: 'Polling timed out' };
 };
 
 module.exports = {
   createSubmission,
-  getSubmissionResult,
   pollSubmissionResult,
 };

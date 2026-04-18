@@ -42,4 +42,14 @@ const updateGoal = async (req, res) => {
   }
 };
 
-module.exports = { getGoals, createGoal, updateGoal };
+// DELETE /api/goals/:id
+const deleteGoal = async (req, res) => {
+  try {
+    await query('DELETE FROM weekly_goals WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    res.json({ success: true, message: 'Goal deleted.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = { getGoals, createGoal, updateGoal, deleteGoal };

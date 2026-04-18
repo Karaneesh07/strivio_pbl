@@ -35,7 +35,14 @@ const getProblemById = async (req, res) => {
     const { rows } = await query('SELECT * FROM problems WHERE id = ?', [id]);
     if (rows.length === 0)
       return res.status(404).json({ success: false, message: 'Problem not found.' });
-    return res.json({ success: true, problem: rows[0] });
+      
+    // Fetch visible test cases to display as examples
+    const { rows: testCases } = await query('SELECT input, expected_output FROM test_cases WHERE problem_id = ? AND is_hidden = 0', [id]);
+    
+    const problem = rows[0];
+    problem.examples = testCases;
+    
+    return res.json({ success: true, problem });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
   }
