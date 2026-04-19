@@ -12,7 +12,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME || 'strivio_db',
   ssl: process.env.DB_HOST && process.env.DB_HOST !== 'localhost'
     ? { 
-        rejectUnauthorized: true,
+        rejectUnauthorized: process.env.DB_CA_CERT || fs.existsSync(path.join(__dirname, '../certs/ca.pem')) ? true : false,
         ca: process.env.DB_CA_CERT 
             ? process.env.DB_CA_CERT 
             : (fs.existsSync(path.join(__dirname, '../certs/ca.pem')) 
