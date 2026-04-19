@@ -20,9 +20,24 @@ import NotificationsPage    from './pages/NotificationsPage';
 import ProblemWorkspace     from './pages/ProblemWorkspace';
 import Sidebar              from './components/Sidebar';
 
+import { requestPushPermission, onMessageListener } from './firebase';
+
 // Protected route: also redirects to onboarding on first login
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
+  
+  React.useEffect(() => {
+    if (user && localStorage.getItem('strivio_onboarded')) {
+       requestPushPermission();
+       
+       onMessageListener().then(payload => {
+           // Display foreground notification dynamically
+           console.log('[App] Foreground Push Received', payload);
+           alert(`New Push Notification!\n\n${payload?.notification?.title}\n${payload?.notification?.body}`);
+       }).catch(err => console.log('failed: ', err));
+    }
+  }, [user]);
+
   if (loading) return (
     <div className="d-flex justify-content-center align-items-center vh-100" style={{ color: '#4361ee' }}>
       <div className="spinner-border" />
