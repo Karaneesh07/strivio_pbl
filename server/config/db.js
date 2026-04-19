@@ -13,7 +13,11 @@ const pool = mysql.createPool({
   ssl: process.env.DB_HOST && process.env.DB_HOST !== 'localhost'
     ? { 
         rejectUnauthorized: true,
-        ca: fs.readFileSync(path.join(__dirname, '../certs/ca.pem')),
+        ca: process.env.DB_CA_CERT 
+            ? process.env.DB_CA_CERT 
+            : (fs.existsSync(path.join(__dirname, '../certs/ca.pem')) 
+                ? fs.readFileSync(path.join(__dirname, '../certs/ca.pem')) 
+                : undefined),
       }
     : false,
   waitForConnections: true,
