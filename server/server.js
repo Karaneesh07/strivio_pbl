@@ -44,9 +44,20 @@ app.use('/api/code', codeRoutes);
 app.use('/api/reflections', reflectionRoutes);
 app.use('/api/goals', goalRoutes);
 
-// ── 404 catchall ───────────────────────────────────────────────
-app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found.' }));
+const path = require('path');
 
+// ── Production Frontend Serving ────────────────────────────────
+if (process.env.NODE_ENV === 'production') {
+    app.use(express.static(path.join(__dirname, '../client/dist')));
+    
+    // Any remaining request that doesn't match API routes goes to React
+    app.get('*', (req, res) => {
+        res.sendFile(path.resolve(__dirname, '../client/dist', 'index.html'));
+    });
+} else {
+    // ── 404 catchall for Development ────────────────────────────────
+    app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found.' }));
+}
 // ── Global Error Handler ───────────────────────────────────────
 app.use((err, req, res, next) => {
     console.error('[ERROR]', err.stack);
